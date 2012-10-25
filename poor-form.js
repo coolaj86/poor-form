@@ -4,6 +4,7 @@
 
   // TODO allow \r\r and \n\n for netcat debugging, etc
   var EventEmitter = require('events').EventEmitter
+    , util = require('util')
     , QuickParser = require('./quickParser')
     , CRLF = '\r\n'
     , CRLF_LEN = 2
@@ -50,10 +51,6 @@
   }
 
   function PoorForm(req) {
-    if (!(this instanceof PoorForm)) {
-      return new PoorForm(req);
-    }
-
     var me = this
       , ctype = req.headers['content-type'] || ''
         // this could be chunked and have no length specified
@@ -62,17 +59,24 @@
       , boundBuffer
       ;
 
+    // First of all, is it even worth the expense of the object?
+    if (req.complete || !/multipart\/form-data/i.test(ctype)) {
+      return null;
+    }
+
+    // Secondly, am I already a PoorForm object?
+    if (!(this instanceof PoorForm)) {
+      return new PoorForm(req);
+    }
+
+    EventEmitter.call(this);
+
     me.req = req;
     me.theFirstTime = true;
     me.lastStart = null;
     me.lastChunkPartial = null;
     me.lastBuf = null;
-    me.emitter = new EventEmitter();
 
-    if (!/multipart\/form-data/i.test(ctype)) {
-      me.emitter = null;
-      return null;
-    }
 
     // TODO the /m seems pointless? shouldn't this be on just one line?
     // I suppose the standard technically allows for \r and \n, but who does that?
@@ -80,7 +84,6 @@
     if (!boundString) {
       // TODO
       console.error('req.headers[..]: the multipart/form-data request is not HTTP-compliant, boundary string wasn\'t found..');
-      me.emitter = null;
       return null;
     }
 
@@ -96,12 +99,15 @@
     req.on('data', me._boundOnData);
     req.on('end', me._boundOnEnd);
   }
+
+  util.inherits(PoorForm, EventEmitter);
+
   PoorForm.prototype._onEnd = function onEnd() {
     var me = this
       ;
 
     //onData(null, cb);
-    me.emitter.emit('realend');
+    me.emit('realend');
   };
   PoorForm.prototype._onData = function onData(chunk) {
     var me = this
@@ -145,7 +151,7 @@
         // even if the last headers were partial, they have been
         // concatonated with the next chunk by this point
         // (in which case the length of the first body will be 0)
-        me.emitter.emit('data', chunk.slice(index, rstart - CRLF_LEN));
+        me.emit('data', chunk.slice(index, rstart - CRLF_LEN));
         // in the case of partial headers,
         // make sure that lastBuf doesn't contain any data
         index = rstart; // skipping the CRLF
@@ -182,15 +188,15 @@
           if (index > chunk.length) {
             console.error('expected more bytes then what I have to give!');
           }
-          //emitter.emit('rawboundary', boundary);
-          //emitter.emit('rawheaders', headers);
+          //me.emit('rawboundary', boundary);
+          //me.emit('rawheaders', headers);
           // TODO objectify
           if (!me.theFirstTime) {
-            me.emitter.emit('loadend');
+            me.emit('loadend');
           } else {
             me.theFirstTime = false;
           }
-          me.emitter.emit('loadstart', formatHeaders(headersStr));
+          me.emit('loadstart', formatHeaders(headersStr));
         }
       } else if (sliceLen >= ((rfinish + CRLF_LEN) - rstart)) {
         // doesn't reach a single CRLF, probably a partial header
@@ -210,9 +216,9 @@
           if (index > chunk.length) {
             console.error('expected more bytes then what I got!');
           }
-          me.emitter.emit('loadend');
+          me.emit('loadend');
           // this is an assumed end
-          me.emitter.emit('end', boundary.toString('utf8'));
+          me.emit('end', boundary.toString('utf8'));
           me.req.removeListener('data', me._boundOnData);
           me.req.on('data', function (garb) {
             console.error('got unexpected data');
@@ -240,7 +246,7 @@
 
     me.lastBuf = chunk.slice(index, chunk.length);
     if (!me.lastChunkPartial && 0 !== me.lastBuf.length) {
-      me.emitter.emit('data', me.lastBuf);
+      me.emit('data', me.lastBuf);
       me.lastBuf = null;
     }
   };

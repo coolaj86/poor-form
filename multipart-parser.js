@@ -15,13 +15,16 @@
   // curl localhost:3000/uploadthings -X POST 
   app = connect.createServer()
     .use(function (req, res, next) {
-        var emitter = PoorForm.create(req, res, next).emitter
+        var emitter = PoorForm.create(req)
           , fws
           , hash
           , filename
           ;
 
         if (!emitter) {
+          // this isn't the multipart form I thought it would be!
+          // either than or req.complete was true
+          next();
           return;
         }
 
@@ -38,7 +41,7 @@
           filename = headers['content-disposition'].filename || headers['content-disposition'].name;
           fws = fs.createWriteStream('file-' + filename);
           console.log('[filestart]');
-          console.log(headers);
+          //console.log(headers);
         });
         emitter.on('data', function (chunk) {
           hash.update(chunk);
