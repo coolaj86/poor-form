@@ -9,6 +9,8 @@
     , CRLF_LEN = 2
     //, CRLFCRLF = '\r\n\r\n'
     , CRLFCRLF_LEN = 4
+    //, DDCRLF = '--\r\n'
+    , DDCRLF_LEN = 4
     ;
 
   function PoorForm(req) {
@@ -81,7 +83,7 @@
 
     results = me.qkp.parse(chunk);
 
-    results.forEach(function (result, i) {
+    results.some(function (result, i) {
       //console.log(result);
       var rstart = result.start
         , rfinish = result.finish
@@ -89,7 +91,6 @@
         //, bodyLength = result.finish - headerLength
         // note that end is not length
         // buf.slice([start], [end])
-        , body0 = chunk.slice(index, rstart)
         , boundary
         , headers
         , headersStr
@@ -97,15 +98,21 @@
         , sliceLen = chunk.length - rstart
         ;
 
-      // in all circumstances the chunk up to rstart is data
-      // even if the last headers were partial, they have been
-      // concatonated with the next chunk by this point
-      // (in which case the length of the first body will be 0)
-      if (0 !== body0.length) {
-        me.emitter.emit('data', body0);
+      // rstart occurs just after \r\n
+      if (rstart === 0) {
+        // ignore
+      } else if (rstart < CRLF_LEN) {
+        console.error("rstart === 1? I don't see how that's possible.");
+        return true; // break
+      } else {
+        // in all circumstances the chunk up to rstart is data
+        // even if the last headers were partial, they have been
+        // concatonated with the next chunk by this point
+        // (in which case the length of the first body will be 0)
+        me.emitter.emit('data', chunk.slice(index, rstart - CRLF_LEN));
         // in the case of partial headers,
         // make sure that lastBuf doesn't contain any data
-        index = rstart;
+        index = rstart; // skipping the CRLF
       }
 
       // NOTE
@@ -135,7 +142,7 @@
           me.lastChunkPartial = true;
           me.lastStart = rstart;
         } else {
-          index = rfinish;
+          index = rfinish + CRLFCRLF_LEN;
           //emitter.emit('rawboundary', boundary);
           //emitter.emit('rawheaders', headers);
           // TODO objectify
@@ -160,7 +167,7 @@
           me.lastStart = rstart;
         } else {
           // The header deos have the end-of-boundary marker
-          index = rfinish + CRLF_LEN;
+          index = rfinish + DDCRLF_LEN;
           if (index > chunk.length) {
             console.error('expected more bytes then what I got!');
           }
@@ -171,25 +178,27 @@
           me.req.on('data', function (garb) {
             console.error('got unexpected data');
             console.log(garb);
+
+            // The header didn't have the charactaristic \r\n\r\n
+            // TODO this better had be the last chunk
+            if (results.length - 1 !== i) {
+              console.log(headersStr);
+              console.log(headersStr.substr(headersStr.length - 4));
+              console.error('MAJOR badness in the header malformation');
+              console.error('[TODO] bail without attempt to recover');
+            }
           });
         }
       }
 
-      // The header didn't have the charactaristic \r\n\r\n
-      // TODO this better had be the last chunk
-      if (results.length - 1 !== i) {
-        console.log(headersStr);
-        console.log(headersStr.substr(headersStr.length - 4));
-        console.error('MAJOR badness in the header malformation');
-        console.error('[TODO] bail without attempt to recover');
-      }
     });
 
     // lastBuf is always assigned
-    me.lastBuf = chunk.slice(index, chunk.length);
-
-    if (!me.lastChunkPartial && 0 !== me.lastBuf.length) {
-      me.emitter.emit('data', me.lastBuf);
+    if (index < chunk.length) {
+      me.lastBuf = chunk.slice(index, chunk.length);
+      if (!me.lastChunkPartial && 0 !== me.lastBuf.length) {
+        me.emitter.emit('data', me.lastBuf);
+      }
     }
   };
 

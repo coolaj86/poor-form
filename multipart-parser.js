@@ -6,6 +6,7 @@
   var connect = require('connect')
     , PoorForm = require('./poor-form').PoorForm
     , fs = require('fs')
+    , util = require('util')
     , app
     , server
     , count = 0
@@ -39,6 +40,16 @@
         emitter.on('data', function (chunk) {
           fws.write(chunk);
           console.log('[progress]', chunk.length);
+          if (chunk.length < 20) {
+            console.log('so short');
+            console.log(chunk.toString('utf8'));
+            console.log('so done');
+          } else {
+            console.log('so long');
+            console.log(chunk.slice(0,8).toString('utf8'));
+            console.log(chunk.slice(chunk.length - 8, chunk.length).toString('utf8'));
+            console.log('so lived');
+          }
         });
         emitter.on('loadend', function () {
           fws.end();
