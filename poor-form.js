@@ -5,13 +5,49 @@
   // TODO allow \r\r and \n\n for netcat debugging, etc
   var EventEmitter = require('events').EventEmitter
     , QuickParser = require('./quickParser')
-    //, CRLF = '\r\n'
+    , CRLF = '\r\n'
     , CRLF_LEN = 2
     //, CRLFCRLF = '\r\n\r\n'
     , CRLFCRLF_LEN = 4
     //, DDCRLF = '--\r\n'
-    , DDCRLF_LEN = 4
+    //, DDCRLF_LEN = 4
     ;
+
+  // NOTE if we're really trying to detect and correct villany
+  // this is not a good parser. But for getting good user data
+  // and ignoring villany, it should be good enough
+  //
+  // form-data; name="attachments[]"; filename="file1.txt"
+  function formatContentDisposition(str) {
+    // TODO make this less breakable
+    return {
+        "form-data": true
+      , name: (str.match(/name="([^\"]+)"/mi)||[])[1]
+      , filename: (str.match(/filename="([^\"]+)"/mi)||[])[1]
+    };
+  }
+
+  // ^M
+  // Content-Disposition: form-data; name="avatar"; filename="smiley-cool.png"^M
+  // Content-Type: image/png^M
+  // ^M
+  function formatHeaders(str) {
+    var headers = {}
+      ;
+
+    str.trim().split(CRLF).forEach(function (header) {
+      var pair = /\s*(.+?)\s*:\s*(.+)\s*/.exec(header)
+        ;
+
+      // TODO check for existance before assignment?
+      // (headers are technically arrays)
+      headers[pair[1].toLowerCase()] = pair[2];
+    });
+
+    headers['content-disposition'] = formatContentDisposition(headers['content-disposition']);
+
+    return headers;
+  }
 
   function PoorForm(req) {
     if (!(this instanceof PoorForm)) {
@@ -143,6 +179,9 @@
           me.lastStart = rstart;
         } else {
           index = rfinish + CRLFCRLF_LEN;
+          if (index > chunk.length) {
+            console.error('expected more bytes then what I have to give!');
+          }
           //emitter.emit('rawboundary', boundary);
           //emitter.emit('rawheaders', headers);
           // TODO objectify
@@ -151,7 +190,7 @@
           } else {
             me.theFirstTime = false;
           }
-          me.emitter.emit('loadstart', headersStr.trim().split(/\r\n/g));
+          me.emitter.emit('loadstart', formatHeaders(headersStr));
         }
       } else if (sliceLen >= ((rfinish + CRLF_LEN) - rstart)) {
         // doesn't reach a single CRLF, probably a partial header
@@ -167,7 +206,7 @@
           me.lastStart = rstart;
         } else {
           // The header deos have the end-of-boundary marker
-          index = rfinish + DDCRLF_LEN;
+          index = rfinish + CRLF_LEN;
           if (index > chunk.length) {
             console.error('expected more bytes then what I got!');
           }
@@ -193,12 +232,16 @@
 
     });
 
-    // lastBuf is always assigned
-    if (index < chunk.length) {
-      me.lastBuf = chunk.slice(index, chunk.length);
-      if (!me.lastChunkPartial && 0 !== me.lastBuf.length) {
-        me.emitter.emit('data', me.lastBuf);
-      }
+    if (index >= chunk.length) {
+      // why would this happen?
+      console.log('mismatch size index vs chunk.length, probably just a whitespace thing');
+      return;
+    }
+
+    me.lastBuf = chunk.slice(index, chunk.length);
+    if (!me.lastChunkPartial && 0 !== me.lastBuf.length) {
+      me.emitter.emit('data', me.lastBuf);
+      me.lastBuf = null;
     }
   };
 

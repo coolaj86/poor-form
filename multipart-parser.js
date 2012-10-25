@@ -6,10 +6,10 @@
   var connect = require('connect')
     , PoorForm = require('./poor-form').PoorForm
     , fs = require('fs')
-    , util = require('util')
+    //, util = require('util')
+    , crypto = require('crypto')
     , app
     , server
-    , count = 0
     ;
 
   // curl localhost:3000/uploadthings -X POST 
@@ -17,6 +17,8 @@
     .use(function (req, res, next) {
         var emitter = PoorForm.create(req, res, next).emitter
           , fws
+          , hash
+          , filename
           ;
 
         if (!emitter) {
@@ -32,14 +34,17 @@
         // loadend
 
         emitter.on('loadstart', function (headers) {
-          fws = fs.createWriteStream('file-' + count + '.jpg');
-          count += 1;
+          hash = crypto.createHash('md5');
+          filename = headers['content-disposition'].filename || headers['content-disposition'].name;
+          fws = fs.createWriteStream('file-' + filename);
           console.log('[filestart]');
-          console.log(headers.join('\n'));
+          console.log(headers);
         });
         emitter.on('data', function (chunk) {
+          hash.update(chunk);
           fws.write(chunk);
-          console.log('[progress]', chunk.length);
+          //console.log('[progress]', chunk.length);
+          /*
           if (chunk.length < 20) {
             console.log('so short');
             console.log(chunk.toString('utf8'));
@@ -50,8 +55,10 @@
             console.log(chunk.slice(chunk.length - 8, chunk.length).toString('utf8'));
             console.log('so lived');
           }
+          */
         });
         emitter.on('loadend', function () {
+          console.log(hash.digest('hex'), filename);
           fws.end();
           console.log('[fileend]');
         });
