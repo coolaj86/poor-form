@@ -9,7 +9,7 @@
 
   var EventEmitter = require('events').EventEmitter
     , util = require('util')
-    , QuickParser = require('./quickParser')
+    , QuickParser = require('./quickParser').QuickParser
     , reEndsWith2Crlf = /\r\n\r\n$/
     , reIsMultipart = /multipart\/form-data/i
     , reSplitHeaders = /\s*(.+?)\s*:\s*(.+)\s*/
@@ -98,7 +98,7 @@
     boundBuffer = new Buffer('--' + boundString);
     me.bblength = boundBuffer.length;
     me.boundEnd = '--' + boundString + '--';
-    me.qkp = new QuickParser.quickParser(boundBuffer);
+    me.qkp = new QuickParser(boundBuffer);
 
     me._boundOnData = me._onData.bind(me);
     me._boundOnEnd = me._onEnd.bind(me);
