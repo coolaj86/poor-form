@@ -13,13 +13,13 @@ Truly a [formidable](https://github.com/felixge/node-formidable) competitor.
 
 ## API
 
-  * `PoorForm.create(req)`
-  * `PoorForm#on('fieldstart', fn)`
-  * `PoorForm#on('fielddata', fn)`
-  * `PoorForm#on('fieldend', fn)`
-  * `PoorForm#on('formend', fn)`
-  * `PoorForm#total`
-  * `PoorForm#loaded`
+  * [`PoorForm.create(req)`](#poorformcreaterequest)
+  * [`PoorForm#on('fieldstart', fn)`](#poorformonfieldstart-function-headers---)
+  * [`PoorForm#on('fielddata', fn)`](#poorformonfielddata-function-buffer---)
+  * [`PoorForm#on('fieldend', fn)`](#poorformonfieldend-function----)
+  * [`PoorForm#on('formend', fn)`](#poorformonformend-function----)
+  * [`PoorForm#total`](#poorformloaded)
+  * [`PoorForm#loaded`](#poorformtotal)
 
 ### PoorForm.create(request)
 
