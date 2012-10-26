@@ -145,7 +145,7 @@ poorForm.on('formend', function () {
 });
 ```
 
-### PoorForm.loaded
+### PoorForm#loaded
 
 Number of bytes received so far - including all headers, whitespace, form fields, and files.
 
@@ -162,7 +162,7 @@ req.on('data', function () {
 
 **TODO**: *Maybe* provide a `progress` event - just for the sake of knowing the event would fire after the byte count update.
 
-### PoorForm.total
+### PoorForm#total
 
 The total number of bytes in the form - the same as `req.headers['content-length']`.
 
