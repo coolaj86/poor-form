@@ -13,37 +13,37 @@
   // An md5sum service
   app = connect.createServer()
     .use(function (req, res, next) {
-        var emitter = PoorForm.create(req)
+        var poorForm = PoorForm.create(req)
           , hash
           , info
           , hashes = []
           ;
 
-        if (!emitter) {
+        if (!poorForm) {
           console.log("Either this was already parsed or it isn't a multi-part form");
           next();
           return;
         }
 
-        emitter.on('fieldstart', function (headers) {
+        poorForm.on('fieldstart', function (headers) {
           console.log('[fieldstart]', headers.filename || headers.name);
           hash = crypto.createHash('md5');
           info = headers;
         });
 
-        emitter.on('fielddata', function (chunk) {
+        poorForm.on('fielddata', function (chunk) {
           hash.update(chunk);
         });
 
-        emitter.on('fieldend', function () {
+        poorForm.on('fieldend', function () {
           info.md5sum = hash.digest('hex');
           console.log(info.md5sum);
           hashes.push(info);
         });
 
-        emitter.on('formend', function () {
+        poorForm.on('formend', function () {
           console.log('[formend]');
-          res.end(JSON.stringify({ "success": true, "result": hashes }));
+          res.end(JSON.stringify({ "success": true, "result": hashes }, null, '  '));
         });
       })
     ;

@@ -1,0 +1,30 @@
+{
+  "name": "poor-form",
+  "version": "1.0.0",
+  "description": "Built upon formaline's ultrafast parser, truly a formidable competitor.",
+  "main": "poor-form.js",
+  "dependencies": {
+    "connect": "~2.6.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "node example-md5sum-service.js & sleep 1; bash test.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/coolaj86/poor-form.git"
+  },
+  "keywords": [
+    "formaline",
+    "formidable",
+    "multipart",
+    "upload",
+    "form",
+    "connect",
+    "express",
+    "post",
+    "parser"
+  ],
+  "author": "AJ ONeal",
+  "license": "MIT"
+}

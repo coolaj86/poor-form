@@ -31,9 +31,13 @@ Returns `null` otherwise - either it's not a multi-part form, or the form has al
 // Using Connect, for example
 app.use(function (req, res, next) {
   var poorForm = PoorForm.create(req)
+    , fields = []
+    , count = 0
+    , curField
     ;
 
-  if (null === poorForm) {
+  if (!poorForm) {
+    console.log("Either this was already parsed or it isn't a multi-part form");
     next();
     return;
   }
@@ -63,17 +67,20 @@ headers = {
 #### Example
 
 ```javascript
-var curField
-  , fields = []
-  ;
+poorForm.on('fieldstart', function (headers) {
+  var tmpPath = '/tmp/upload-' + count + '.bin'
+    ;
 
-poorForm.on('fieldstart', function (headers, filestream) {
+  count += 1;
+  curField = {};
+
   if (headers.filename) {
     console.log('Probably a file and probably has a mime-type', headers.type);
-    curField = fs.createWriteStream(tmpFile);
+    curField.fw = fs.createWriteStream(tmpPath);
+    curField.tmpPath = tmpPath;
   } else {
     console.log('Probably a field without a mime-type', headers.type);
-    curField = {}
+    curField.value = '';
   }
 
   curField.totalBytes = 0;
@@ -87,11 +94,11 @@ Emitted for each chunk of data that belongs to a field or file (no headers, whit
 
 ```javascript
 poorForm.on('fielddata', function (buffer) {
-  if (headers.filename) {
-    curField.write(buffer);
+  if (curField.fw) {
+    curField.fw.write(buffer);
     console.log('Just wrote', buffer.length, 'bytes of a file');
   } else {
-    curField.value += buffer.toString('utf8')
+    curField.value += buffer.toString('utf8');
   }
 
   curField.totalBytes += buffer.length;
@@ -106,9 +113,16 @@ Emitted when the current field or file has completed.
 
 ```javascript
 poorForm.on('fieldend', function () {
-  if (curField.headers.filename) {
-    curField.end();
+  var lastField = curField
+    ;
+
+  if (curField.fw) {
+    curField.fw.end();
+    curField.fw = undefined;
     console.log('Just wrote a file of ', curField.totalBytes, 'bytes');
+    fs.rename(curField.tmpPath, '/tmp/' + curField.headers.filename, function () {
+      console.log('Renamed', lastField.tmpPath, 'to', lastField.headers.filename);
+    });
   } else {
     console.log('Just received', curField.headers.name + ':' + curField.value);
   }
@@ -116,6 +130,7 @@ poorForm.on('fieldend', function () {
   fields.push(curField);
   curField = null;
 });
+
 ```
 
 ### PoorForm#on('formend', function () { ... })
@@ -124,7 +139,7 @@ Emitted when the end-of-form boundary has been encountered.
 
 ```javascript
 poorForm.on('formend', function () {
-  res.end(JSON.stringify(fields));
+  res.end(JSON.stringify(fields, null, '  '));
 });
 ```
 
@@ -133,9 +148,6 @@ poorForm.on('formend', function () {
 Number of bytes received so far - including all headers, whitespace, form fields, and files.
 
 ```javascript
-var poorForm = PoorForm.create(req)
-  ;
-
 req.on('data', function () {
   var ratio = poorForm.loaded / poorForm.total
     , percent = Math.round(ratio * 100)
@@ -177,35 +189,35 @@ Example (example.js)
   // An md5sum service
   app = connect.createServer()
     .use(function (req, res, next) {
-        var emitter = PoorForm.create(req)
+        var poorForm = PoorForm.create(req)
           , hash
           , info
           , hashes = []
           ;
 
-        if (!emitter) {
+        if (!poorForm) {
           console.log("Either this was already parsed or it isn't a multi-part form");
           next();
           return;
         }
 
-        emitter.on('fieldstart', function (headers) {
+        poorForm.on('fieldstart', function (headers) {
           console.log('[fieldstart]', headers.filename || headers.name);
           hash = crypto.createHash('md5');
           info = headers;
         });
 
-        emitter.on('fielddata', function (chunk) {
+        poorForm.on('fielddata', function (chunk) {
           hash.update(chunk);
         });
 
-        emitter.on('fieldend', function () {
+        poorForm.on('fieldend', function () {
           info.md5sum = hash.digest('hex');
           console.log(info.md5sum);
           hashes.push(info);
         });
 
-        emitter.on('formend', function () {
+        poorForm.on('formend', function () {
           console.log('[formend]');
           res.end(JSON.stringify({ "success": true, "result": hashes }));
         });
