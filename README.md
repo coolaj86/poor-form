@@ -170,7 +170,7 @@ console.log(poorForm.total + 'bytes received thus far');
 
 **NOTE**: If the content encoding is `chunked` poorForm.total will be `Infinity`.
 
-Example (example.js)
+Example: An md5sum webservice
 ===
 
 ```javascript
