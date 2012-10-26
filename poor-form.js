@@ -265,6 +265,7 @@
     return new PoorForm(req);
   };
 
+  PoorForm.QuickParser = QuickParser;
   PoorForm.PoorForm = PoorForm;
   exports.PoorForm = PoorForm; // as if there were a competing non-node commonjs environment
   module.exports = PoorForm;
