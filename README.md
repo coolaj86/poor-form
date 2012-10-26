@@ -9,6 +9,8 @@ It may be *insignificantly faster* than both formidable and formaline, but that'
 
 Truly a [formidable](https://github.com/felixge/node-formidable) competitor.
 
+    npm install poor-form
+
 ## API
 
   * `PoorForm.create(req)`
