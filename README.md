@@ -1,13 +1,13 @@
 ## PoorForm
 
-Truly a [formidable](https://github.com/felixge/node-formidable) competitor.
-
 PoorForm uses [formaline](https://github.com/rootslab/formaline)'s
 ultra-fast parser to create a much simpler multi-part form parser.
 
-It may be insignificantly faster than both formidable and formaline, but that's not the point.
+It may be *insignificantly faster* than both formidable and formaline, but that's not the point.
 
-The point is that it's a simple base to build upon, kitchen sink not included.
+**The point is** that it's a **simple base to build upon**, kitchen sink *not* included.
+
+Truly a [formidable](https://github.com/felixge/node-formidable) competitor.
 
 ## API
 
@@ -102,7 +102,7 @@ NOTE: It's very possible for a single field with very few bytes to come in with 
 
 ### PoorForm#on('fieldend', function () { ... })
 
-Emitted when the current field or file has completed
+Emitted when the current field or file has completed.
 
 ```javascript
 poorForm.on('fieldend', function () {
@@ -115,6 +115,16 @@ poorForm.on('fieldend', function () {
 
   fields.push(curField);
   curField = null;
+});
+```
+
+### PoorForm#on('formend', function () { ... })
+
+Emitted when the end-of-form boundary has been encountered.
+
+```javascript
+poorForm.on('formend', function () {
+  res.end(JSON.stringify(fields));
 });
 ```
 
