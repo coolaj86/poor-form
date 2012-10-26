@@ -1,5 +1,6 @@
 /*!
  * formaline parser, an implementation of QuickSearch algorithm
+ * http://www-igm.univ-mlv.fr/~lecroq/string/node19.html#SECTION00190
  * Copyright(c) 2011 Guglielmo Ferri <44gatti@gmail.com>
  * MIT Licensed
  *

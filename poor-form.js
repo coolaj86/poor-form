@@ -2,42 +2,43 @@
 (function () {
   "use strict";
 
-  // TODO allow \r\r and \n\n for netcat debugging, etc
+  // TODO
+  // Almost all clients send \r\n (Chrome, Firefox, cURL, etc)
+  // However, it is useful to allow for a single \r or \n for use
+  // with debugging tools such as netcat
+
   var EventEmitter = require('events').EventEmitter
     , util = require('util')
     , QuickParser = require('./quickParser')
+    , reEndsWith2Crlf = /\r\n\r\n$/
+    , reIsMultipart = /multipart\/form-data/i
+    , reSplitHeaders = /\s*(.+?)\s*:\s*(.+)\s*/
+    , reName = /name="([^\"]+)"/mi
+    , reFilename = /filename="([^\"]+)"/mi
+    , reBoundary = /boundary=([^;]+)/mi
+    , eArr = []
     , CRLF = '\r\n'
     , CRLF_LEN = 2
     //, CRLFCRLF = '\r\n\r\n'
     , CRLFCRLF_LEN = 4
-    //, DDCRLF = '--\r\n'
-    //, DDCRLF_LEN = 4
     ;
 
-  // NOTE if we're really trying to detect and correct villany
+  // NOTE
+  // if we're really trying to detect and correct villany
   // this is not a good parser. But for getting good user data
   // and ignoring villany, it should be good enough
   //
-  // form-data; name="attachments[]"; filename="file1.txt"
-  function formatContentDisposition(str) {
-    // TODO make this less breakable
-    return {
-        "form-data": true
-      , name: (str.match(/name="([^\"]+)"/mi)||[])[1]
-      , filename: (str.match(/filename="([^\"]+)"/mi)||[])[1]
-    };
-  }
-
   // ^M
   // Content-Disposition: form-data; name="avatar"; filename="smiley-cool.png"^M
   // Content-Type: image/png^M
   // ^M
   function formatHeaders(str) {
     var headers = {}
+      , disposition
       ;
 
     str.trim().split(CRLF).forEach(function (header) {
-      var pair = /\s*(.+?)\s*:\s*(.+)\s*/.exec(header)
+      var pair = reSplitHeaders.exec(header)
         ;
 
       // TODO check for existance before assignment?
@@ -45,7 +46,11 @@
       headers[pair[1].toLowerCase()] = pair[2];
     });
 
-    headers['content-disposition'] = formatContentDisposition(headers['content-disposition']);
+    disposition = headers['content-disposition'];
+    headers.name = (str.match(reName)||eArr)[1];
+    headers.filename = (str.match(reFilename)||eArr)[1];
+    headers.type = headers['content-type'];
+    //headers.size = 0;
 
     return headers;
   }
@@ -60,7 +65,7 @@
       ;
 
     // First of all, is it even worth the expense of the object?
-    if (req.complete || !/multipart\/form-data/i.test(ctype)) {
+    if (req.complete || !reIsMultipart.test(ctype)) {
       return null;
     }
 
@@ -71,16 +76,18 @@
 
     EventEmitter.call(this);
 
-    me.req = req;
-    me.theFirstTime = true;
-    me.lastStart = null;
-    me.lastChunkPartial = null;
-    me.lastBuf = null;
+    me.total = req.headers['content-length'] || Infinity;
+    me.loaded = 0;
+
+    me._req = req;
+    me._theFirstTime = true;
+    me._lastChunkPartial = null;
+    me._lastBuf = null;
 
 
     // TODO the /m seems pointless? shouldn't this be on just one line?
     // I suppose the standard technically allows for \r and \n, but who does that?
-    boundString = (ctype.match(/boundary=([^;]+)/mi)||[])[1];
+    boundString = (ctype.match(reBoundary)||eArr)[1];
     if (!boundString) {
       // TODO
       console.error('req.headers[..]: the multipart/form-data request is not HTTP-compliant, boundary string wasn\'t found..');
@@ -95,44 +102,34 @@
 
     me._boundOnData = me._onData.bind(me);
     me._boundOnEnd = me._onEnd.bind(me);
+    //me._boundOnClose = me._onClose.bind(me);
 
     req.on('data', me._boundOnData);
     req.on('end', me._boundOnEnd);
+    //req.on('close', me._boundOnClose);
   }
 
   util.inherits(PoorForm, EventEmitter);
 
-  PoorForm.prototype._onEnd = function onEnd() {
-    var me = this
-      ;
-
-    //onData(null, cb);
-    me.emit('realend');
-  };
   PoorForm.prototype._onData = function onData(chunk) {
     var me = this
       , results
       , index = 0
       ;
 
-    if (me.lastChunkPartial) {
-      // I hope that Buffer.concat is more efficient than making a copy
-      // but I don't know that it is.
-      chunk = Buffer.concat([me.lastBuf, chunk], me.lastBuf.length + chunk.length);
-      me.lastChunkPartial = false;
-      me.lastStart = 0;
+    me.loaded += chunk.length;
+
+    if (me._lastChunkPartial) {
+      // joins the last bits of the previous potential header with the new bits
+      chunk = Buffer.concat([me._lastBuf, chunk], me._lastBuf.length + chunk.length);
+      me._lastChunkPartial = false;
     }
 
     results = me.qkp.parse(chunk);
 
     results.some(function (result, i) {
-      //console.log(result);
       var rstart = result.start
         , rfinish = result.finish
-        //, headerLength = result.finish - (result.start + me.bblength + CRLF_LEN)
-        //, bodyLength = result.finish - headerLength
-        // note that end is not length
-        // buf.slice([start], [end])
         , boundary
         , headers
         , headersStr
@@ -144,17 +141,21 @@
       if (rstart === 0) {
         // ignore
       } else if (rstart < CRLF_LEN) {
-        console.error("rstart === 1? I don't see how that's possible.");
+        console.error(__filename);
+        console.error("Report to PoorForm: rstart === 1? I don't see how that's possible.");
         return true; // break
       } else {
         // in all circumstances the chunk up to rstart is data
         // even if the last headers were partial, they have been
         // concatonated with the next chunk by this point
         // (in which case the length of the first body will be 0)
-        me.emit('data', chunk.slice(index, rstart - CRLF_LEN));
+        me.emit('fielddata', chunk.slice(index, rstart - CRLF_LEN));
         // in the case of partial headers,
         // make sure that lastBuf doesn't contain any data
         index = rstart; // skipping the CRLF
+        if (index > chunk.length) {
+          console.log('what the weird?');
+        }
       }
 
       // NOTE
@@ -179,24 +180,20 @@
           , rfinish + CRLFCRLF_LEN
         );
         headersStr = headers.toString('utf8');
-        //console.log('[HEADERS]', headersStr);
-        if (!/\r\n\r\n$/.test(headersStr)) {
-          me.lastChunkPartial = true;
-          me.lastStart = rstart;
+
+        if (!reEndsWith2Crlf.test(headersStr)) {
+          me._lastChunkPartial = true;
         } else {
           index = rfinish + CRLFCRLF_LEN;
           if (index > chunk.length) {
             console.error('expected more bytes then what I have to give!');
           }
-          //me.emit('rawboundary', boundary);
-          //me.emit('rawheaders', headers);
-          // TODO objectify
-          if (!me.theFirstTime) {
-            me.emit('loadend');
+          if (!me._theFirstTime) {
+            me.emit('fieldend');
           } else {
-            me.theFirstTime = false;
+            me._theFirstTime = false;
           }
-          me.emit('loadstart', formatHeaders(headersStr));
+          me.emit('fieldstart', formatHeaders(headersStr));
         }
       } else if (sliceLen >= ((rfinish + CRLF_LEN) - rstart)) {
         // doesn't reach a single CRLF, probably a partial header
@@ -208,61 +205,67 @@
         if (-1 === boundary.toString('utf8').indexOf(me.boundEnd)) {
           // This header was neither ended properly, nor a end-of-boundary marker
           // it must be rechecked later
-          me.lastChunkPartial = true;
-          me.lastStart = rstart;
+          me._lastChunkPartial = true;
         } else {
           // The header deos have the end-of-boundary marker
           index = rfinish + CRLF_LEN;
           if (index > chunk.length) {
             console.error('expected more bytes then what I got!');
           }
-          me.emit('loadend');
-          // this is an assumed end
-          me.emit('end', boundary.toString('utf8'));
-          me.req.removeListener('data', me._boundOnData);
-          me.req.on('data', function (garb) {
-            console.error('got unexpected data');
-            console.log(garb);
-
-            // The header didn't have the charactaristic \r\n\r\n
-            // TODO this better had be the last chunk
-            if (results.length - 1 !== i) {
-              console.log(headersStr);
-              console.log(headersStr.substr(headersStr.length - 4));
-              console.error('MAJOR badness in the header malformation');
-              console.error('[TODO] bail without attempt to recover');
-            }
+          me.emit('fieldend');
+          // this is an assumed end of the form, although more (villanous) data may come
+          me.emit('formend');
+          me._req.removeListener('data', me._boundOnData);
+          me._req.on('data', function (garb) {
+            console.error(__filename, 'Got unexpected data after parsing was "complete"');
+            console.error(garb);
           });
+
+          // If this isn't the last chunk in the loop then my parser logic is bad
+          // until I can extensively test it, this check will remain in place
+          if (results.length - 1 !== i) {
+            console.log(headersStr);
+            console.log(headersStr.substr(headersStr.length - 4));
+            console.error(__filename);
+            console.error('Report this error to PoorForm: MAJOR badness in the header malformation');
+            console.error('You may have lost some data during this upload, or received maliciously corrupt data');
+          }
         }
       }
 
     });
 
-    if (index >= chunk.length) {
-      // why would this happen?
-      console.log('mismatch size index vs chunk.length, probably just a whitespace thing');
-      return;
+    me._lastBuf = chunk.slice(index, chunk.length);
+    if (!me._lastChunkPartial && 0 !== me._lastBuf.length) {
+      me.emit('fielddata', me._lastBuf);
+      me._lastBuf = null;
     }
+  };
 
-    me.lastBuf = chunk.slice(index, chunk.length);
-    if (!me.lastChunkPartial && 0 !== me.lastBuf.length) {
-      me.emit('data', me.lastBuf);
-      me.lastBuf = null;
-    }
+  PoorForm.prototype._onEnd = function onEnd() {
+    /*
+    var me = this
+      ;
+
+    //me._req.removeListener('close', me._boundOnClose);
+    */
+  };
+
+  PoorForm.prototype._onClose = function onEnd() {
+    /*
+    var me = this
+      ;
+
+    //me.emit('error', new Error("Connection unexpectedly closed"));
+    me.emit('formend');
+    */
   };
 
   PoorForm.create = function (req) {
     return new PoorForm(req);
   };
-  PoorForm.test = function (req) {
-    var ctype = req.headers['content-type'] || ''
-      ;
 
-    if (/multipart\/form-data/i.test(ctype)) {
-      return true;
-    }
-    return false;
-  };
-
-  module.exports.PoorForm = PoorForm;
+  PoorForm.PoorForm = PoorForm;
+  exports.PoorForm = PoorForm; // as if there were a competing non-node commonjs environment
+  module.exports = PoorForm;
 }());
