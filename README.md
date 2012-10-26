@@ -108,7 +108,7 @@ Emitted when the current field or file has completed.
 poorForm.on('fieldend', function () {
   if (curField.headers.filename) {
     curField.end();
-    console.log('Just wrote a file of ', fw.totalBytes, 'bytes');
+    console.log('Just wrote a file of ', curField.totalBytes, 'bytes');
   } else {
     console.log('Just received', curField.headers.name + ':' + curField.value);
   }
