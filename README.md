@@ -15,8 +15,9 @@ Truly a [formidable](https://github.com/felixge/node-formidable) competitor.
 
     git clone git://github.com/coolaj86/poor-form.git
     cd poor-form
+    npm install --dev
     node example-md5sum-service.js 4444 &
-    node md5sum-test.js .
+    node test/md5sum-test.js .
 
 ## API
 
