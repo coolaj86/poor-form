@@ -13,11 +13,23 @@ Truly a [formidable](https://github.com/felixge/node-formidable) competitor.
 
 ## Test
 
+There are two tests.
+
+The first walks a directory and checks the md5 sums of the files against the md5sums calculated by the server.
+
+The second creates a few thousand form submissions where each form has one more byte than the previous form
+(an attempt to catch off-by-one errors).
+
     git clone git://github.com/coolaj86/poor-form.git
     cd poor-form
     npm install --dev
     node example-md5sum-service.js 4444 &
     node test/md5sum-test.js .
+    node test/md5sum-bits-test.js
+
+If you encounter any errors running the test, it's probably just an issue of dependencies
+(there's some `instanceof` magic that fails if any modules from `file-api` are installed twice),
+but the `npmshrinkwrap.json` should be preventing this.
 
 ## API
 
