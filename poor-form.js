@@ -13,6 +13,8 @@
     , reEndsWith2Crlf = /\r\n\r\n$/
     , reIsMultipart = /multipart\/form-data/i
     , reSplitHeaders = /\s*(.+?)\s*:\s*(.+)\s*/
+      // TODO the /m seems pointless? shouldn't this be on just one line?
+      // I suppose the standard technically allows for \r and \n, but who does that?
     , reName = /name="([^\"]+)"/mi
     , reFilename = /filename="([^\"]+)"/mi
     , reBoundary = /boundary=([^;]+)/mi
@@ -55,18 +57,17 @@
     return headers;
   }
 
-  function PoorForm(req) {
+  function PoorForm(req, boundString) {
     var me = this
-      , ctype = req.headers['content-type'] || ''
         // this could be chunked and have no length specified
       //, clength = req.headers['content-length']
-      , boundString
       , boundBuffer
       ;
 
     // First of all, is it even worth the expense of the object?
-    if (req.complete || !reIsMultipart.test(ctype)) {
-      return null;
+    boundString = boundString || PoorForm.test(req);
+    if (!boundString) {
+      throw new Error('req.headers[..]: the multipart/form-data request is not HTTP-compliant, boundary string wasn\'t found..');
     }
 
     // Secondly, am I already a PoorForm object?
@@ -83,16 +84,6 @@
     me._theFirstTime = true;
     me._lastChunkPartial = null;
     me._lastBuf = null;
-
-
-    // TODO the /m seems pointless? shouldn't this be on just one line?
-    // I suppose the standard technically allows for \r and \n, but who does that?
-    boundString = (ctype.match(reBoundary)||eArr)[1];
-    if (!boundString) {
-      // TODO
-      console.error('req.headers[..]: the multipart/form-data request is not HTTP-compliant, boundary string wasn\'t found..');
-      return null;
-    }
 
     //boundBuffer = new Buffer(boundString);
     boundBuffer = new Buffer('--' + boundString);
@@ -261,8 +252,31 @@
     */
   };
 
+  PoorForm.test = function (req) {
+    var ctype = req.headers['content-type'] || ''
+      , boundString
+      ;
+
+    if (req.complete || !reIsMultipart.test(ctype)) {
+      return false;
+    }
+
+    boundString = (ctype.match(reBoundary)||eArr)[1];
+    if (!boundString) {
+      return false;
+    }
+
+    return boundString;
+  };
   PoorForm.create = function (req) {
-    return new PoorForm(req);
+    var boundString = PoorForm.test(req)
+      ;
+
+    if (boundString) {
+      return new PoorForm(req, boundString);
+    } else {
+      return null;
+    }
   };
 
   PoorForm.QuickParser = QuickParser;

@@ -1,0 +1,115 @@
+{
+  "name": "poor-form",
+  "version": "1.0.1",
+  "dependencies": {
+    "connect": {
+      "version": "2.6.2",
+      "dependencies": {
+        "qs": {
+          "version": "0.5.1"
+        },
+        "formidable": {
+          "version": "1.0.11"
+        },
+        "cookie-signature": {
+          "version": "0.0.1"
+        },
+        "crc": {
+          "version": "0.2.0"
+        },
+        "cookie": {
+          "version": "0.0.4"
+        },
+        "bytes": {
+          "version": "0.1.0"
+        },
+        "send": {
+          "version": "0.1.0",
+          "dependencies": {
+            "mime": {
+              "version": "1.2.6"
+            },
+            "range-parser": {
+              "version": "0.0.4"
+            }
+          }
+        },
+        "fresh": {
+          "version": "0.1.0"
+        },
+        "pause": {
+          "version": "0.0.1"
+        },
+        "debug": {
+          "version": "0.7.0"
+        }
+      }
+    },
+    "bufferjs": {
+      "version": "1.0.2"
+    },
+    "FileList": {
+      "version": "0.10.0"
+    },
+    "ahr2": {
+      "version": "2.3.2",
+      "dependencies": {
+        "future": {
+          "version": "2.3.1"
+        },
+        "join": {
+          "version": "2.3.1"
+        },
+        "btoa": {
+          "version": "1.1.0"
+        },
+        "navigator": {
+          "version": "1.0.1"
+        },
+        "location": {
+          "version": "0.0.1"
+        }
+      }
+    },
+    "File": {
+      "version": "0.10.0",
+      "dependencies": {
+        "mime": {
+          "version": "1.2.7"
+        }
+      }
+    },
+    "FormData": {
+      "version": "0.10.1",
+      "dependencies": {
+        "remedial": {
+          "version": "1.0.7"
+        },
+        "forEachAsync": {
+          "version": "2.2.0",
+          "dependencies": {
+            "sequence": {
+              "version": "2.2.1"
+            }
+          }
+        },
+        "FileReader": {
+          "version": "0.10.2"
+        }
+      }
+    },
+    "walk": {
+      "version": "2.2.1",
+      "dependencies": {
+        "forEachAsync": {
+          "version": "2.2.0",
+          "dependencies": {
+            "sequence": {
+              "version": "2.2.1"
+            }
+          }
+        }
+      }
+    }
+  }
+}

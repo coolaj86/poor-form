@@ -21,6 +21,7 @@
 
         if (!poorForm) {
           console.log("Either this was already parsed or it isn't a multi-part form");
+          console.log(req.headers['content-type']);
           next();
           return;
         }
@@ -49,6 +50,7 @@
     ;
 
   server = app.listen(port, function () {
+    console.log('Listening on');
     console.log(server.address());
   });
 
