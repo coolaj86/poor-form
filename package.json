@@ -12,6 +12,7 @@
     "bufferjs": "1.x",
     "ahr2": "2.x",
     "walk": "2.x",
+    "loop": ">=2.1.1 <2.2.0",
     "forEachAsync": "2.x"
   },
   "scripts": {
