@@ -79,6 +79,8 @@
 
     me.total = req.headers['content-length'] || Infinity;
     me.loaded = 0;
+    // TODO I'm not convinced that this is super useful yet
+    //me.chunks = 0;
 
     me._req = req;
     me._theFirstTime = true;
@@ -109,6 +111,7 @@
       ;
 
     me.loaded += chunk.length;
+    //me.chunks += 1;
 
     if (me._lastChunkPartial) {
       // joins the last bits of the previous potential header with the new bits

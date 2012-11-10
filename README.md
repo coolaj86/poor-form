@@ -252,3 +252,24 @@ Example: An md5sum webservice
 
 }());
 ```
+
+## Possible Future Enhancements
+
+There are a few derivations of the `multipart/*` type:
+
+  * `multipart/form-data` (with dispositions `form-data` and `file`) [W3 Spec](http://www.w3.org/TR/html401/interact/forms.html#h-17.13.4)
+  * `multipart/mixed` (similar to the `file` disposition, but without a declared disposition or `filename`) [W3 RFC 1341](http://www.w3.org/Protocols/rfc1341/7_2_Multipart.html)
+  * `multipart/alternative`
+  * `multipart/digest`
+  * `multipart/parallel`
+
+`poor-form` could *very* easily be adapted to handle these types as well.
+However, I don't know of any practical use for them at the moment.
+
+## Bugs
+
+If a form ends unexpectedly, `curFile` should be closed.
+
+Needs an error for when a form writes past the end boundary
+
+Needs a default size limit on headers (4k would be more than reasonable) before sending an error
