@@ -180,8 +180,6 @@ req.on('data', function () {
 });
 ```
 
-**TODO**: *Maybe* provide a `progress` event - just for the sake of knowing the event would fire after the byte count update.
-
 ### PoorForm#total
 
 The total number of bytes in the form - the same as `req.headers['content-length']`.
