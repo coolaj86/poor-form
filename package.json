@@ -1,19 +1,12 @@
 {
   "name": "poor-form",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Built upon formaline's ultrafast parser, truly a formidable competitor.",
   "main": "poor-form.js",
   "dependencies": {
-    "connect": "~2.6.0"
+    "qp": "1.x"
   },
   "devDependencies": {
-    "FormData": "*",
-    "File": "*",
-    "bufferjs": "1.x",
-    "ahr2": "2.x",
-    "walk": "2.x",
-    "loop": ">=2.1.1 <2.2.0",
-    "forEachAsync": "2.x"
   },
   "scripts": {
     "test": "node example-md5sum-service.js & sleep 1; bash test.sh"
