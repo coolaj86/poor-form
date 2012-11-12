@@ -79,8 +79,8 @@ Emitted each time a new field is encountered.
 headers = {
     name: "foo-fieldname"             // parsed value from Content-Disposition
   , filename: "big.bin"               // parsed value from Content-Disposition
-  , type: "application/octet-stream"  // alias of Content-Type
-  , 'content-type': "application/octet-stream"
+  , type: "application/json"          // Just the MIME-type of the Content-Type
+  , 'content-type': "application/json; charset=utf-8"
   , 'content-disposition': 'form-data; name="foo-fieldname"; filename="big.bin"'
   , ...                               // any other raw headers (usually none)
 }

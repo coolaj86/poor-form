@@ -51,7 +51,7 @@
     disposition = headers['content-disposition'];
     headers.name = (str.match(reName)||eArr)[1];
     headers.filename = (str.match(reFilename)||eArr)[1];
-    headers.type = headers['content-type'];
+    headers.type = (headers['content-type']||'').replace(/;.*/, '');
     //headers.size = 0;
 
     return headers;
