@@ -22,7 +22,7 @@ The second creates a few thousand form submissions where each form has one more 
 
     git clone git://github.com/coolaj86/poor-form.git
     cd poor-form
-    mv npm-shrinkwrap.bak.json npm-shrinkwrap.json
+    cp npm-shrinkwrap.bak.json npm-shrinkwrap.json
     npm install --dev
     node example-md5sum-service.js 4444 &
     node test/md5sum-test.js .

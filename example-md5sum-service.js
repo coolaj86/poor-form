@@ -33,12 +33,13 @@
         });
 
         poorForm.on('fielddata', function (chunk) {
+          console.log('[fielddata]', chunk.length);
           hash.update(chunk);
         });
 
         poorForm.on('fieldend', function () {
           info.md5sum = hash.digest('hex');
-          console.log(info.md5sum);
+          console.log('[fieldend]', info.md5sum);
           hashes.push(info);
         });
 
