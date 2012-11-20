@@ -2,6 +2,8 @@
 (function () {
   "use strict";
 
+  require('bufferjs');
+
   // TODO
   // Almost all clients send \r\n (Chrome, Firefox, cURL, etc)
   // However, it is useful to allow for a single \r or \n for use
@@ -105,6 +107,7 @@
   util.inherits(PoorForm, EventEmitter);
 
   PoorForm.prototype._onData = function onData(chunk) {
+    console.log('onData');
     var me = this
       , results
       , index = 0
@@ -120,6 +123,7 @@
     }
 
     results = me._qkp.parse(chunk);
+    console.log('results.length', results.length);
 
     results.some(function (result, i) {
       var rstart = result.start
@@ -143,6 +147,7 @@
         // even if the last headers were partial, they have been
         // concatonated with the next chunk by this point
         // (in which case the length of the first body will be 0)
+        //console.log('[fielddata 1]');
         me.emit('fielddata', chunk.slice(index, rstart - CRLF_LEN));
         // in the case of partial headers,
         // make sure that lastBuf doesn't contain any data
@@ -156,8 +161,16 @@
       // In the case of <boundary>\r\n<header> the chunk will larger than <boundary>\r\n
       // And the case of <boundary>-- 
       // we still know that boundaryEnd is at least that long
-      if (chunk.length >= (boundaryEnd - rstart)) {
+      if (chunk.length >= boundaryEnd) {
+      //if (chunk.length >= (boundaryEnd - rstart)) {
+        try {
         boundary = chunk.slice(rstart, boundaryEnd);
+        //boundary = chunk.slice(rstart, boundaryEnd - rstart);
+        } catch(e) {
+          console.error('oob');
+          console.error(chunk.length, rstart, boundaryEnd);
+          throw e;
+        }
         //console.log('[BOUNDARY]', boundary.toString('utf8'));
       }
 
@@ -168,6 +181,7 @@
       */
 
       if (sliceLen >= ((rfinish + CRLFCRLF_LEN) - rstart)) {
+        //console.log('reached end of header');
         // reaches double CRLF (end-of-header)
         headers = chunk.slice(
             boundaryEnd
@@ -190,7 +204,7 @@
           me.emit('fieldstart', formatHeaders(headersStr));
         }
       } else if (sliceLen >= ((rfinish + CRLF_LEN) - rstart)) {
-        // doesn't reach a single CRLF, probably a partial header
+        // doesn't reach a single CRLF, either a partial header or end-of-boundary
         headers = chunk.slice(
             boundaryEnd
           , rfinish + CRLF_LEN
@@ -199,8 +213,10 @@
         if (-1 === boundary.toString('utf8').indexOf(me.boundEnd)) {
           // This header was neither ended properly, nor a end-of-boundary marker
           // it must be rechecked later
+          util.print('PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP\n');
           me._lastChunkPartial = true;
         } else {
+          //util.print('[end-boundary]\n');
           // The header deos have the end-of-boundary marker
           index = rfinish + CRLF_LEN;
           if (index > chunk.length) {
@@ -225,12 +241,21 @@
             console.error('You may have lost some data during this upload, or received maliciously corrupt data');
           }
         }
+      } else {
+        console.log('did nothing');
       }
 
     });
 
     me._lastBuf = chunk.slice(index, chunk.length);
+    // check the length of the pattern and see if it starts in the last bytes of the chunk
+    // TODO what happens if the last chunk of data is in this partial business?
+    me._lastChunkPartial = me._lastChunkPartial || (-1 !== chunk.indexOf('-', Math.max(chunk.length - me.bblength, 0)));
     if (!me._lastChunkPartial && 0 !== me._lastBuf.length) {
+      console.log('[fielddata 2]');
+      if (me._lastBuf.length < 100) {
+        console.log(JSON.stringify(me._lastBuf.toString()));
+      }
       me.emit('fielddata', me._lastBuf);
       me._lastBuf = null;
     }
