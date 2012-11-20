@@ -89,7 +89,9 @@
         return;
       }
 
+      console.error('data');
       console.error(data);
+      console.error('origQueue');
       console.error(origQueue);
       throw new Error('Major Badness');
     });
@@ -123,16 +125,21 @@
     cs.end();
   }
   
-  buffer = new Buffer(512);
+  // Standard 10/100 Ethernet MTU is around 1500
+  //buffer = new Buffer(1500 * 3);
+  // Standard TCP packet size is around 65k
+  buffer = new Buffer(1024 * 68);
 
-  buffer.fill('-');
+  // for the adventurous:
+  //buffer.fill('-');
+  buffer.fill('*');
 
   // Los Uno
   function loopA() {
     console.log('Loop A');
     fileCount = 0;
     loop.run(function (next) {
-      if (fileCount >= 512) {
+      if (fileCount >= buffer.length) {
         next("break");
         loopB();
         return;
