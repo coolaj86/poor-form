@@ -91,9 +91,13 @@
 
       console.error('data');
       console.error(data);
+      origQueue.forEach(function (item) {
+        item.size = item.buffer.length;
+        delete item.buffer;
+      });
       console.error('origQueue');
       console.error(origQueue);
-      throw new Error('Major Badness');
+      throw new Error('md5sum mismatch');
     });
   }
 

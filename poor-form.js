@@ -123,7 +123,7 @@
     }
 
     results = me._qkp.parse(chunk);
-    console.log('results.length', results.length);
+    //console.log('results.length', results.length);
 
     results.some(function (result, i) {
       var rstart = result.start
@@ -138,10 +138,13 @@
       // rstart occurs just after \r\n
       if (rstart === 0) {
         // ignore
+      // it's possible because a partial header may start at any byte
       } else if (rstart < CRLF_LEN) {
-        console.error(__filename);
-        console.error("Report to PoorForm: rstart === 1? I don't see how that's possible.");
-        return true; // break
+        //console.error(__filename);
+        //console.error("Report to PoorForm: rstart === 1? I don't see how that's possible.");
+        //return true; // break
+        me.emit('fielddata', chunk.slice(index, rstart - 1));
+        index = rstart; // skipping the CRLF
       } else {
         // in all circumstances the chunk up to rstart is data
         // even if the last headers were partial, they have been

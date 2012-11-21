@@ -30,10 +30,12 @@
           console.log('[fieldstart]', headers.filename || headers.name);
           hash = crypto.createHash('md5');
           info = headers;
+          info.size = 0;
         });
 
         poorForm.on('fielddata', function (chunk) {
           console.log('[fielddata]', chunk.length);
+          info.size += chunk.length;
           hash.update(chunk);
         });
 
