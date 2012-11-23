@@ -57,10 +57,17 @@
     });
 
     request.post('http://localhost:4444/dummy', null, form).when(function (err, ahr2, data) {
+      if (err) {
+        console.error(err);
+        return;
+      }
+
       try {
         data = JSON.parse(data.toString('utf8')).result;
       } catch(e) {
         console.error('Request could not be parsed as JSON');
+        console.error(e);
+        console.log(data);
         console.error(data.toString('utf8'));
         return;
       }
@@ -158,7 +165,7 @@
     console.log('Loop B');
     fileCount = 0;
     loop.run(function (next) {
-      if (fileCount >= 512) {
+      if (fileCount >= buffer.length) {
         next("break");
         loopC();
         return;
@@ -172,7 +179,7 @@
     console.log('Loop C');
     fileCount = 0;
     loop.run(function (next) {
-      if (fileCount >= 512) {
+      if (fileCount >= buffer.length) {
         next("break");
         loopD();
         return;
@@ -187,7 +194,7 @@
     console.log('Loop D');
     fileCount = 0;
     loop.run(function (next) {
-      if (fileCount >= 512) {
+      if (fileCount >= buffer.length) {
         next("break");
         loopE();
         return;
@@ -201,7 +208,7 @@
     console.log('Loop E');
     fileCount = 0;
     loop.run(function (next) {
-      if (fileCount >= 512) {
+      if (fileCount >= buffer.length) {
         next("break");
         loopF();
         return;
@@ -215,7 +222,7 @@
     console.log('Loop F');
     fileCount = 0;
     loop.run(function (next) {
-      if (fileCount >= 512) {
+      if (fileCount >= buffer.length) {
         next("break");
         endLoops();
         return;

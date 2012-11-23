@@ -11,8 +11,7 @@
 
   var EventEmitter = require('events').EventEmitter
     , util = require('util')
-    , QuickParser = require('qp').QuickParser
-    , reEndsWith2Crlf = /\r\n\r\n$/
+    , QuickParser = require('qap').QuickParser
     , reIsMultipart = /multipart\/form-data/i
     , reSplitHeaders = /\s*(.+?)\s*:\s*(.+)\s*/
       // TODO the /m seems pointless? shouldn't this be on just one line?
@@ -23,8 +22,10 @@
     , eArr = []
     , CRLF = '\r\n'
     , CRLF_LEN = 2
-    //, CRLFCRLF = '\r\n\r\n'
+    , CRLFCRLF = '\r\n\r\n'
     , CRLFCRLF_LEN = 4
+    , tcpChunk = 66 * 1024
+    //, zeroBuf = new Buffer(0)
     ;
 
   // NOTE
@@ -39,9 +40,12 @@
   function formatHeaders(str) {
     var headers = {}
       , disposition
+      , lines
       ;
 
-    str.trim().split(CRLF).forEach(function (header) {
+    lines = str.trim().split(CRLF);
+    lines.shift(); // get rid of the boundary marker itself
+    lines.forEach(function (header) {
       var pair = reSplitHeaders.exec(header)
         ;
 
@@ -59,11 +63,9 @@
     return headers;
   }
 
+  // Note this could be chunked and have no length specified
   function PoorForm(req, boundString) {
     var me = this
-        // this could be chunked and have no length specified
-      //, clength = req.headers['content-length']
-      , boundBuffer
       ;
 
     // First of all, is it even worth the expense of the object?
@@ -82,22 +84,30 @@
     me.total = req.headers['content-length'] || Infinity;
     me.loaded = 0;
     // TODO I'm not convinced that this is super useful yet
-    //me.chunks = 0;
+    me.chunks = 0;
 
     me._req = req;
     me._theFirstTime = true;
-    me._lastChunkPartial = null;
-    me._lastBuf = null;
+    me._lastChunkPartial = false;
+    me._numPartialChunks = 0;
+    me._numPartialBytes = 0;
+    me._prevBuf = null;
 
-    //boundBuffer = new Buffer(boundString);
-    boundBuffer = new Buffer('--' + boundString);
-    me.bblength = boundBuffer.length;
-    me.boundEnd = '--' + boundString + '--';
-    me._qkp = new QuickParser(boundBuffer);
+    me._boundBuffer = new Buffer('--' + boundString);
+    me.bblength = me._boundBuffer.length;
+    me.boundaryEnd = CRLF + '--' + boundString + '--' + CRLF;
+    me.boundaryEndBuffer = new Buffer(me.boundaryEnd);
+    me._qapBoundEnd = new QuickParser(me.boundaryEndBuffer);
+    me._qapBoundStart = new QuickParser(me._boundBuffer);
+    me._qapHeaderEnd = new QuickParser(new Buffer(CRLFCRLF), 1);
+    me._fieldInProgress = false;
+    me._formEndFound = false;
 
     me._boundOnData = me._onData.bind(me);
     me._boundOnEnd = me._onEnd.bind(me);
     //me._boundOnClose = me._onClose.bind(me);
+    
+    me._debugBufs = [];
 
     req.on('data', me._boundOnData);
     req.on('end', me._boundOnEnd);
@@ -107,164 +117,189 @@
   util.inherits(PoorForm, EventEmitter);
 
   PoorForm.prototype._onData = function onData(chunk) {
-    console.log('onData');
     var me = this
-      , results
-      , index = 0
-      ;
+    , results
+    , lastDataStart = null
+    , formEndSlice
+    , originalChunk
+    , k
+    ;
+
+    me._debugBufs.push(chunk);
+
+    if (me._theFirstTime) {
+      console.log('\n[0.0.0] Form Start');
+    }
+    k = me.chunks;
+    console.log('[' + k + '.0.0] onData');
 
     me.loaded += chunk.length;
-    //me.chunks += 1;
+    me.chunks += 1;
 
-    if (me._lastChunkPartial) {
-      // joins the last bits of the previous potential header with the new bits
-      chunk = Buffer.concat([me._lastBuf, chunk], me._lastBuf.length + chunk.length);
-      me._lastChunkPartial = false;
+    // NOTE: It's quite possible that a non-browser would chunk things
+    // up a bit more than usual (i.e. spit out boundaries whole and chunk
+    // out files), hence the check for both numChunks and numBytes
+    if (me._numPartialChunks > 1 && me._numPartialBytes > tcpChunk) {
+      throw new Error(
+        'Partial boundary not resolved after '
+        + me._numPartialChunks
+        + ' chunks and '
+        + me._numPartialBytes
+        + '.'
+      );
     }
 
-    results = me._qkp.parse(chunk);
-    //console.log('results.length', results.length);
+    if (me._prevBuf) {
+      // joins the last bits of the previous potential header with the new bits
+      me._numPartialChunks += 1;
+      me._numPartialBytes += chunk.length;
+      chunk = Buffer.concat([me._prevBuf, chunk], me._prevBuf.length + chunk.length);
+      me._prevBuf = null;
+    } else {
+      me._numPartialChunks = 0;
+      me._numPartialBytes = 0;
+    }
 
-    results.some(function (result, i) {
-      var rstart = result.start
-        , rfinish = result.finish
-        , boundary
-        , headers
-        , headersStr
-        , boundaryEnd = rstart + me.bblength + CRLF_LEN
-        , sliceLen = chunk.length - rstart
+    // Check to see if the Form End is in this chunk
+    // (and it may be better to just compare strings)
+    // TODO test for the leading \r\n here?
+    if (chunk.length >= me.boundaryEndBuffer.length) {
+      formEndSlice = chunk.slice(chunk.length - me.boundaryEndBuffer.length);
+
+      if (undefined !== me._qapBoundEnd.parse(formEndSlice)[0]) {
+        // Yes, the form will end!!!
+        console.log('[EOF] found the end of the form');
+        //console.log('================================================================');
+        //console.log(chunk.slice(0, 100).toString());
+        chunk = chunk.slice(0, chunk.length - me.boundaryEndBuffer.length);
+        //console.log('================================================================');
+        //console.log(chunk.slice(0, 100).toString());
+        //console.log('================================================================');
+        me._formEndFound = true;
+      }
+    } else {
+      // TODO Should probably just skip all parsing and wait for the next chunk or 'end' event
+    }
+
+    // This WILL NOT have the full end of form marker (though it may be partial)
+    console.log('chunk.length', chunk.length);
+    originalChunk = chunk;
+    results = me._qapBoundStart.parse(originalChunk);
+    //console.log('results.length', results.length);
+    
+    results.some(function (headerStart, i) {
+      console.log('[' + k + '.1.' + i + '.0] lo');
+      var headerAndData
+        , endIndex = results[i + 1] || originalChunk.length
+        //, endIndex = Math.min(results[i + 1] || chunk.length, chunk.length)
+        , headerEndArr
+        , headerEnd
+        , headerStr
+        , lastDataEnd = headerStart - CRLF_LEN
         ;
 
-      // rstart occurs just after \r\n
-      if (rstart === 0) {
-        // ignore
-      // it's possible because a partial header may start at any byte
-      } else if (rstart < CRLF_LEN) {
-        //console.error(__filename);
-        //console.error("Report to PoorForm: rstart === 1? I don't see how that's possible.");
-        //return true; // break
-        me.emit('fielddata', chunk.slice(index, rstart - 1));
-        index = rstart; // skipping the CRLF
-      } else {
-        // in all circumstances the chunk up to rstart is data
-        // even if the last headers were partial, they have been
-        // concatonated with the next chunk by this point
-        // (in which case the length of the first body will be 0)
-        //console.log('[fielddata 1]');
-        me.emit('fielddata', chunk.slice(index, rstart - CRLF_LEN));
-        // in the case of partial headers,
-        // make sure that lastBuf doesn't contain any data
-        index = rstart; // skipping the CRLF
-        if (index > chunk.length) {
-          console.log('what the weird?');
-        }
+      headerAndData = originalChunk.slice(headerStart, endIndex);
+
+      if (null !== lastDataStart) {
+        console.log('[' + k + '.1.' + i + '.1] pr');
+                                // end of last header, 2 bytes before this header
+        me._debugData = originalChunk.slice(lastDataStart, lastDataEnd);
+        me.emit('fielddata', originalChunk.slice(lastDataStart, lastDataEnd));
+        // NOTE: On the very first header there isn't a 2 byte predecesor, but
+        // there also isn't data before it, so it's nothing to worry about
+        lastDataStart = null;
       }
 
-      // NOTE
-      // In the case of <boundary>\r\n<header> the chunk will larger than <boundary>\r\n
-      // And the case of <boundary>-- 
-      // we still know that boundaryEnd is at least that long
-      if (chunk.length >= boundaryEnd) {
-      //if (chunk.length >= (boundaryEnd - rstart)) {
-        try {
-        boundary = chunk.slice(rstart, boundaryEnd);
-        //boundary = chunk.slice(rstart, boundaryEnd - rstart);
-        } catch(e) {
-          console.error('oob');
-          console.error(chunk.length, rstart, boundaryEnd);
-          throw e;
-        }
-        //console.log('[BOUNDARY]', boundary.toString('utf8'));
-      }
+      headerEndArr = me._qapHeaderEnd.parse(headerAndData);
+      headerEnd = headerEndArr[0];
 
-      /*
-      console.log('[CHUNK]', chunk.length, rstart, rfinish);
-      console.log('[HLENG]', chunk.length - rstart);
-      console.log('[HDLEN]', (rfinish + CRLF_LEN) - rstart);
-      */
-
-      if (sliceLen >= ((rfinish + CRLFCRLF_LEN) - rstart)) {
-        //console.log('reached end of header');
-        // reaches double CRLF (end-of-header)
-        headers = chunk.slice(
-            boundaryEnd
-          , rfinish + CRLFCRLF_LEN
-        );
-        headersStr = headers.toString('utf8');
-
-        if (!reEndsWith2Crlf.test(headersStr)) {
-          me._lastChunkPartial = true;
-        } else {
-          index = rfinish + CRLFCRLF_LEN;
-          if (index > chunk.length) {
-            console.error('expected more bytes then what I have to give!');
-          }
-          if (!me._theFirstTime) {
-            me.emit('fieldend');
-          } else {
-            me._theFirstTime = false;
-          }
-          me.emit('fieldstart', formatHeaders(headersStr));
-        }
-      } else if (sliceLen >= ((rfinish + CRLF_LEN) - rstart)) {
-        // doesn't reach a single CRLF, either a partial header or end-of-boundary
-        headers = chunk.slice(
-            boundaryEnd
-          , rfinish + CRLF_LEN
-        );
-        headersStr = headers.toString('utf8');
-        if (-1 === boundary.toString('utf8').indexOf(me.boundEnd)) {
-          // This header was neither ended properly, nor a end-of-boundary marker
-          // it must be rechecked later
-          util.print('PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP\n');
-          me._lastChunkPartial = true;
-        } else {
-          //util.print('[end-boundary]\n');
-          // The header deos have the end-of-boundary marker
-          index = rfinish + CRLF_LEN;
-          if (index > chunk.length) {
-            console.error('expected more bytes then what I got!');
-          }
+      // the token was not found (could be found at 0, which is falsey)
+      if (headerEndArr.length) {
+        console.log('[' + k + '.1.' + i + '.2] fs');
+        if (!me._theFirstTime) {
+          me._fieldInProgress = false;
           me.emit('fieldend');
-          // this is an assumed end of the form, although more (villanous) data may come
-          me.emit('formend');
-          me._req.removeListener('data', me._boundOnData);
-          me._req.on('data', function (garb) {
-            console.error(__filename, 'Got unexpected data after parsing was "complete"');
-            console.error(garb);
-          });
-
-          // If this isn't the last chunk in the loop then my parser logic is bad
-          // until I can extensively test it, this check will remain in place
-          if (results.length - 1 !== i) {
-            console.log(headersStr);
-            console.log(headersStr.substr(headersStr.length - 4));
-            console.error(__filename);
-            console.error('Report this error to PoorForm: MAJOR badness in the header malformation');
-            console.error('You may have lost some data during this upload, or received maliciously corrupt data');
-          }
+        } else {
+          me._theFirstTime = false;
         }
-      } else {
-        console.log('did nothing');
+        headerStr = headerAndData.slice(0, headerEnd).toString('utf8');
+        //console.log('+++++++++++++++++++++++++++++++++++++++++++++++++++++++');
+        //console.log(JSON.stringify(headerStr));
+        //console.log('+++++++++++++++++++++++++++++++++++++++++++++++++++++++');
+        me.emit('fieldstart', formatHeaders(headerStr));
+        lastDataStart = headerStart + headerEnd + CRLFCRLF_LEN;
+        //console.log(JSON.stringify(chunk.slice(lastDataStart).toString()));
+        chunk = originalChunk.slice(lastDataStart);
+        //console.log('+++++++++++++++++++++++++++++++++++++++++++++++++++++++');
+        me._fieldInProgress = true;
+        return;
       }
 
+      if (i === results.length - 1) {
+        // this is the last field in the chunk
+        console.log('[' + k + '.1.'+ i + '.3] fd');
+        chunk = originalChunk.slice(headerStart);
+        return;
+      }
+      
+      // this is not the last chunk
+      throw new Error("There was no end to this start, yet there's another start.");
     });
 
-    me._lastBuf = chunk.slice(index, chunk.length);
-    // check the length of the pattern and see if it starts in the last bytes of the chunk
-    // TODO what happens if the last chunk of data is in this partial business?
-    me._lastChunkPartial = me._lastChunkPartial || (-1 !== chunk.indexOf('-', Math.max(chunk.length - me.bblength, 0)));
-    if (!me._lastChunkPartial && 0 !== me._lastBuf.length) {
-      console.log('[fielddata 2]');
-      if (me._lastBuf.length < 100) {
-        console.log(JSON.stringify(me._lastBuf.toString()));
+    if (me._formEndFound) {
+      console.log('[' + k + '.2.0] fd');
+      me._debugData = chunk;
+      me.emit('fielddata', chunk);
+      me._fieldInProgress = false;
+      me.emit('fieldend');
+      me.emit('formend');
+      me._prevBuf = null;
+      return;
+    }
+
+    /*
+    if (-1 !== chunk.indexOf('\r')) {
+      console.log('[' + k + '.2.1] fd');
+      me._prevBuf = chunk;
+      return;
+    }
+    */
+
+    if (chunk.length > me._boundBuffer.length + CRLFCRLF_LEN) {
+      if (-1 === chunk.indexOf('\r', chunk.length - (me._boundBuffer.length + CRLFCRLF_LEN))) {
+        console.log('[' + k + '.2.2] fd');
+        // If there's no '\r', then there's definitely no '\r\n--' and hence no partial boundary.
+        // That means this chunk of data is safe to pass along
+        me._debugData = chunk;
+        me.emit('fielddata', chunk);
+      } else {
+        console.log('[' + k + '.2.3] fd');
+        //console.log(chunk.toString());
+        me._debugData = chunk.slice(0, chunk.length - (me._boundBuffer.length + CRLFCRLF_LEN));
+        me.emit('fielddata', chunk.slice(0, chunk.length - (me._boundBuffer.length + CRLFCRLF_LEN)));
+        me._prevBuf = chunk.slice(chunk.length - (me._boundBuffer.length + CRLFCRLF_LEN));
       }
-      me.emit('fielddata', me._lastBuf);
-      me._lastBuf = null;
+    } else {
+      console.log('[' + k + '2.4] fd');
+      me._prevBuf = chunk;
     }
   };
 
   PoorForm.prototype._onEnd = function onEnd() {
+    var buf = Buffer.concat(this._debugBufs);
+    if (this._prevBuf) {
+      console.log('[end]');
+      console.log('[BOUND]', JSON.stringify(this.boundaryEndBuffer.toString()));
+      console.log('[ENDB] ', JSON.stringify(this._prevBuf.slice(Math.max(this._prevBuf.length - 100, 0)).toString()));
+      console.log('[CHUNK]', JSON.stringify(this._debugData.slice(this._debugData.length - 100).toString()));
+      console.log('[START]', JSON.stringify(buf.slice(0, 300).toString()));
+      console.log('[ENDF] ', JSON.stringify(buf.slice(buf.length - 100).toString()));
+      if (this._prevBuf.toString() === this.boundaryEndBuffer.toString().substr(2)) {
+        this.emit('fieldend');
+        this.emit('formend');
+      }
+    }
+    // do something with unfinished formitude?
     /*
     var me = this
       ;
