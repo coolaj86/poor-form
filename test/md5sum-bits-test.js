@@ -13,11 +13,13 @@
     , pathname = process.argv[2]
     , queue = [] 
     , buffer
-    , dashBuf = new Buffer('-')
-    , dashMd5 = crypto.createHash('md5').update('-').digest('hex')
+    , bittyBuf = new Buffer('&')
+    , bittyMd5 = crypto.createHash('md5').update(bittyBuf).digest('hex')
     , Loop = require('loop')
     , loop = Loop()
     , fileCount
+    , startSize = 58 * 1024
+    , endSize = 68 * 1024
     ;
 
   function noop() {
@@ -125,9 +127,9 @@
 
       for (j = 0; j < size; j += 1) {
         if (j === index) {
-          queue[j] = { buffer: bytes, name: "filething-" + j + "-" + fileCount, md5: cs.digest};
+          queue[j] = { buffer: bytes, name: "biggyfile-" + j + "-" + fileCount, md5: cs.digest};
         } else {
-          queue[j] = { buffer: dashBuf, name: "filething-" + j + "-" + fileCount, md5: dashMd5};
+          queue[j] = { buffer: bittyBuf, name: "bittyfile-" + j + "-" + fileCount, md5: bittyMd5};
         }
       }
     });
@@ -139,7 +141,7 @@
   // Standard 10/100 Ethernet MTU is around 1500
   //buffer = new Buffer(1500 * 3);
   // Standard TCP packet size is around 65k
-  buffer = new Buffer(1024 * 68);
+  buffer = new Buffer(endSize);
 
   // for the adventurous:
   //buffer.fill('-');
@@ -148,7 +150,7 @@
   // Los Uno
   function loopA() {
     console.log('Loop A');
-    fileCount = 0;
+    fileCount = startSize;
     loop.run(function (next) {
       if (fileCount >= buffer.length) {
         next("break");
@@ -160,10 +162,12 @@
     });
   }
 
+  //
   // Los Dos
+  //
   function loopB() {
     console.log('Loop B');
-    fileCount = 0;
+    fileCount = startSize;
     loop.run(function (next) {
       if (fileCount >= buffer.length) {
         next("break");
@@ -177,7 +181,7 @@
 
   function loopC() {
     console.log('Loop C');
-    fileCount = 0;
+    fileCount = startSize;
     loop.run(function (next) {
       if (fileCount >= buffer.length) {
         next("break");
@@ -189,10 +193,12 @@
     });
   }
 
+  //
   // Los Tres
+  //
   function loopD() {
     console.log('Loop D');
-    fileCount = 0;
+    fileCount = startSize;
     loop.run(function (next) {
       if (fileCount >= buffer.length) {
         next("break");
@@ -206,7 +212,7 @@
 
   function loopE() {
     console.log('Loop E');
-    fileCount = 0;
+    fileCount = startSize;
     loop.run(function (next) {
       if (fileCount >= buffer.length) {
         next("break");
@@ -220,7 +226,7 @@
 
   function loopF() {
     console.log('Loop F');
-    fileCount = 0;
+    fileCount = startSize;
     loop.run(function (next) {
       if (fileCount >= buffer.length) {
         next("break");
