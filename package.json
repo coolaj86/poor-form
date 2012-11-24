@@ -4,7 +4,8 @@
   "description": "Built upon formaline's ultrafast parser, truly a formidable competitor.",
   "main": "poor-form.js",
   "dependencies": {
-    "qap": "2.1.x"
+    "qap": "2.1.x",
+    "bufferjs": "2.x"
   },
   "devDependencies": {
   },
