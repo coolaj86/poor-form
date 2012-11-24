@@ -1,7 +1,7 @@
 ## PoorForm
 
 PoorForm uses [formaline](https://github.com/rootslab/formaline)'s
-ultra-fast parser to create a much simpler multi-part form parser.
+ultra-fast parser ([QAP](https://github.com/rootslab/qap)) to create a much simpler multi-part form parser.
 
 It may be *insignificantly faster* than both formidable and formaline, but that's not the point.
 
