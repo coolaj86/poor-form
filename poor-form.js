@@ -126,10 +126,10 @@
     me._debugBufs.push(chunk);
 
     if (!me._firstFieldParsed) {
-      console.log('\n[0.0.0] Form Start');
+      //console.log('\n[0.0.0] Form Start');
     }
     k = me.chunks;
-    console.log('[' + k + '.0.0] onData', chunk.length);
+    //console.log('[' + k + '.0.0] onData', chunk.length);
 
     me.loaded += chunk.length;
     me.chunks += 1;
@@ -166,7 +166,7 @@
 
       if (undefined !== me._qapFormEnd.parse(formEndSlice)[0]) {
         // Yes, the form will end!!!
-        console.log('[EOF] found the end of the form');
+        //console.log('[EOF] found the end of the form');
         chunk = chunk.slice(0, chunk.length - me._formEndBoundaryBuf.length);
         me._formEndFound = true;
       }
@@ -175,7 +175,7 @@
     }
 
     // This WILL NOT have the full end of form marker (though it may be partial)
-    console.log('[' + k + '.0.1] concat', chunk.length);
+    //console.log('[' + k + '.0.1] concat', chunk.length);
     if (!me._firstFieldParsed) {
       // this should always be 0
       results = me._qapFirstFieldStart.parse(chunk, 0, 1);
@@ -188,9 +188,9 @@
     me._lastDataStart = null;
     me._curChunkIndex = 0;
 
-    console.log('results', results);
+    //console.log('results', results);
     results.forEach(function (headerStart, i) {
-      console.log('[' + k + '.1.' + i + '.0] lo ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ', headerStart);
+      //console.log('[' + k + '.1.' + i + '.0] lo ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ', headerStart);
       var headerEnd
         //BG , headerAndData
         //BG , endIndex = results[i + 1] || chunk.length
@@ -201,7 +201,7 @@
       //BG headerAndData = chunk.slice(headerStart, endIndex);
 
       if (null !== me._lastDataStart || (0 === i && 0 !== headerStart)) {
-        console.log('[' + k + '.1.' + i + '.1] prev fd');
+        //console.log('[' + k + '.1.' + i + '.1] prev fd');
                                 // end of last header, 2 bytes before this header
         me.emit('fielddata', chunk.slice(me._lastDataStart || 0, headerStart));
         // NOTE: On the very first header there isn't a 2 byte predecesor, but
@@ -216,7 +216,7 @@
 
       // the token was not found (could be found at 0, which is falsey)
       if (headerEndArr.length) {
-        console.log('[' + k + '.1.' + i + '.2] Head End', headerEnd);
+        //console.log('[' + k + '.1.' + i + '.2] Head End', headerEnd);
         me._incompleteHeader = false;
         if (me._firstFieldParsed) {
           me.emit('fieldend');
@@ -227,6 +227,7 @@
         //console.log('headerStr', JSON.stringify(headerStr));
         //console.log('headerEnd', headerStr.length, headerEnd);
         me.emit('fieldstart', formatHeaders(headerStr));
+        /*
         console.log(
             '[' + k + '.1.' + i + '.2] fs'
           , headerEnd
@@ -234,6 +235,7 @@
           //, JSON.stringify(headerStr.substr(0, 10))
           //, JSON.stringify(headerStr.substr(headerStr.length - 10))
         );
+        */
         me._lastDataStart = headerEnd;
         me._curChunkIndex = headerEnd;
       }
@@ -241,7 +243,7 @@
       // The end-of-header CRLFCRLF was not found
       else if (i === results.length - 1) {
         // this is the last field in the chunk
-        console.log('[' + k + '.1.'+ i + '.3] fd');
+        //console.log('[' + k + '.1.'+ i + '.3] fd');
         me._incompleteHeader = true;
         me._curChunkIndex = headerStart;
       }
@@ -253,11 +255,11 @@
     });
 
     if (me._formEndFound) {
-      console.log('[' + k + '.2.0] fd');
+      //console.log('[' + k + '.2.0] fd');
       if (me._incompleteHeader) {
         throw new Error("There was no end to this start, yet there's the form end.");
       }
-      console.log('curChunkIndex:', JSON.stringify(me._curChunkIndex));
+      //console.log('curChunkIndex:', JSON.stringify(me._curChunkIndex));
       //console.log('curChunkIndex', JSON.stringify(chunk.toString()));
       me.emit('fielddata', chunk.slice(me._curChunkIndex));
       me.emit('fieldend');
@@ -268,14 +270,14 @@
 
     // If there was a field start, but no end-of-header, save for concatonation
     if (me._incompleteHeader) {
-      console.log('[' + k + '.2.2] cc', me._curChunkIndex, chunk.length);
+      //console.log('[' + k + '.2.2] cc', me._curChunkIndex, chunk.length);
       me._prevBuf = chunk.slice(me._curChunkIndex);
       return;
     }
     
     // If it's not long enough for a full header
     if ((chunk.length - me._curChunkIndex) < me._fieldStartBuf.length) {
-      console.log('[' + k + '.2.3] cc', me._curChunkIndex, chunk.length, chunk.length - me._curChunkIndex, me._fieldStartBuf.length);
+      //console.log('[' + k + '.2.3] cc', me._curChunkIndex, chunk.length, chunk.length - me._curChunkIndex, me._fieldStartBuf.length);
       me._prevBuf = chunk.slice(me._curChunkIndex);
       return;
     }
@@ -286,14 +288,14 @@
 
     // if there was no field start, but a partial field start is possible, save for concatonation
     if (0 === results.length) {
-      console.log('[' + k + '.2.4] cc');
+      //console.log('[' + k + '.2.4] cc');
       me._curChunkIndex = 0;
     }
 
-    console.log('[' + k + '.2.5] cc', chunk.length);
+    //console.log('[' + k + '.2.5] cc', chunk.length);
     // formEndBoundaryBuf is used because it's the longest possible boundary
     me._endDataIndex = Math.max(chunk.length - me._formEndBoundaryBuf.length, me._curChunkIndex);
-    console.log('[' + k + '.2.5.1] cc', me._endDataIndex);
+    //console.log('[' + k + '.2.5.1] cc', me._endDataIndex);
     me._endDataIndex = chunk.indexOf('\r', me._endDataIndex);
     /*
     me._endDataIndex = chunk.indexOf('\r\n', me._endDataIndex);
@@ -302,19 +304,20 @@
       me._endDataIndex = Math.max(chunk.length - 2, 0);
     }
     */
-    console.log('[' + k + '.2.5.2] cc', me._endDataIndex);
+    //console.log('[' + k + '.2.5.2] cc', me._endDataIndex);
 
     // There was no possible start-of-header marker
     // the whole chunk is data
     // none of the data will be concatonated
     if (-1 === me._endDataIndex) {
-      console.log('[' + k + '.2.6] cc');
+      //console.log('[' + k + '.2.6] cc');
       me._endDataIndex = chunk.length;
       me._prevBuf = null;
     }
 
     // All data occuring before the start-of-header marker is data
     if (0 !== me._endDataIndex) {
+      /*
       console.log(
           '[' + k + '.2.7] cc'
         , me._curChunkIndex
@@ -322,6 +325,7 @@
         , chunk.length - me._curChunkIndex
         , chunk.length - me._endDataIndex
       );
+      */
       /*
       console.log(JSON.stringify(
         chunk.slice(Math.max(me._curChunkIndex, me._endDataIndex - 100), me._endDataIndex).toString()
@@ -332,7 +336,7 @@
 
     // If any of the chunk could be a header, save it for the next go
     if (chunk.length !== me._endDataIndex) {
-      console.log('[' + k + '.2.8] cc');
+      //console.log('[' + k + '.2.8] cc');
       me._prevBuf = chunk.slice(me._endDataIndex);
     }
   };
