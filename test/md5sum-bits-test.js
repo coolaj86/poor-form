@@ -13,13 +13,16 @@
     , pathname = process.argv[2]
     , queue = [] 
     , buffer
+    , fillVal = 'a'
+    //, fillVal = '\r'
     , bittyBuf = new Buffer('&')
     , bittyMd5 = crypto.createHash('md5').update(bittyBuf).digest('hex')
     , Loop = require('loop')
     , loop = Loop()
     , fileCount
-    , startSize = 58 * 1024
-    , endSize = 68 * 1024
+    , startSize = 0 // 58 * 1024
+    //, startSize = 110 * 1024
+    , endSize = 160 * 1024 // 68 * 1024
     ;
 
   function noop() {
@@ -145,7 +148,7 @@
 
   // for the adventurous:
   //buffer.fill('-');
-  buffer.fill('*');
+  buffer.fill(fillVal);
 
   // Los Uno
   function loopA() {

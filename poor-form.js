@@ -231,8 +231,8 @@
             '[' + k + '.1.' + i + '.2] fs'
           , headerEnd
           , chunk.length - headerEnd
-          , JSON.stringify(headerStr.substr(0, 10))
-          , JSON.stringify(headerStr.substr(headerStr.length - 10))
+          //, JSON.stringify(headerStr.substr(0, 10))
+          //, JSON.stringify(headerStr.substr(headerStr.length - 10))
         );
         me._lastDataStart = headerEnd;
         me._curChunkIndex = headerEnd;
@@ -295,6 +295,13 @@
     me._endDataIndex = Math.max(chunk.length - me._formEndBoundaryBuf.length, me._curChunkIndex);
     console.log('[' + k + '.2.5.1] cc', me._endDataIndex);
     me._endDataIndex = chunk.indexOf('\r', me._endDataIndex);
+    /*
+    me._endDataIndex = chunk.indexOf('\r\n', me._endDataIndex);
+    // TODO can this be made any faster?
+    if (-1 === me._endDataIndex && '\r' === chunk[chunk.length - 1]) {
+      me._endDataIndex = Math.max(chunk.length - 2, 0);
+    }
+    */
     console.log('[' + k + '.2.5.2] cc', me._endDataIndex);
 
     // There was no possible start-of-header marker
@@ -315,9 +322,11 @@
         , chunk.length - me._curChunkIndex
         , chunk.length - me._endDataIndex
       );
+      /*
       console.log(JSON.stringify(
         chunk.slice(Math.max(me._curChunkIndex, me._endDataIndex - 100), me._endDataIndex).toString()
       ));
+      */
       me.emit('fielddata', chunk.slice(me._curChunkIndex, me._endDataIndex));
     }
 
