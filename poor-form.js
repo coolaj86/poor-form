@@ -25,6 +25,7 @@
     , CRLFCRLF = '\r\n\r\n'
     , CRLFCRLF_LEN = 4
     , tcpChunk = 66 * 1024
+    , lastPartialOf = require('./last-partial-of').lastPartialOf
     //, zeroBuf = new Buffer(0)
     ;
 
@@ -293,6 +294,13 @@
     }
 
     //console.log('[' + k + '.2.5] cc', chunk.length);
+    // TODO make this faster
+    me._endDataIndex = chunk.length -
+      (me._curChunkIndex - (
+        lastPartialOf(chunk.slice(me._curChunkIndex), me._formEndBoundaryBuf)
+        ||
+        lastPartialOf(chunk.slice(me._curChunkIndex), me._fieldStartBuf)
+      ));
     // formEndBoundaryBuf is used because it's the longest possible boundary
     me._endDataIndex = Math.max(chunk.length - me._formEndBoundaryBuf.length, me._curChunkIndex);
     //console.log('[' + k + '.2.5.1] cc', me._endDataIndex);
