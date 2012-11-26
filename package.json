@@ -1,6 +1,6 @@
 {
   "name": "poor-form",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Built upon formaline's ultrafast parser, truly a formidable competitor.",
   "main": "lib/poor-form.js",
   "directories": {
