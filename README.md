@@ -24,7 +24,7 @@ The second creates a few thousand form submissions where each form has one more 
     cd poor-form
     cp npm-shrinkwrap.bak.json npm-shrinkwrap.json
     npm install --dev
-    node example-md5sum-service.js 4444 &
+    node test/example-md5sum-service.js 4444 &
     node test/md5sum-test.js .
     node test/md5sum-bits-test.js
 

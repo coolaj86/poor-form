@@ -4,7 +4,7 @@
 
   var connect = require('connect')
     , fs = require('fs')
-    , PoorForm = require('./poor-form')
+    , PoorForm = require('../lib/poor-form')
     , port = process.argv[2] || 3000
     , server
     , app

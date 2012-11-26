@@ -3,7 +3,7 @@
   "use strict";
 
   var connect = require('connect')
-    , PoorForm = require('./poor-form')
+    , PoorForm = require('../lib/poor-form')
     , crypto = require('crypto')
     , port = process.argv[2] || 3000
     , server
