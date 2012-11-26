@@ -5,7 +5,7 @@
   "main": "lib/poor-form.js",
   "directories": {
     "lib": "lib"
-  }
+  },
   "dependencies": {
     "qap": "2.1.x",
     "bufferjs": "2.x"
