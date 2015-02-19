@@ -22,6 +22,8 @@
     , fileCount
     , startSize = 0 // 58 * 1024
     //, startSize = 110 * 1024
+    //, startSize = 200 * 1024 * 1024 // 58 * 1024
+    //, endSize = 200 * 1024 * 1024 + 1 // 58 * 1024
     , endSize = 160 * 1024 // 68 * 1024
     ;
 
